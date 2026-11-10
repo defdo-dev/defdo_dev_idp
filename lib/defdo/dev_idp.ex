@@ -23,6 +23,7 @@ defmodule Defdo.DevIdp do
   alias Defdo.DevIdp.Boot
   alias Defdo.DevIdp.BootError
   alias Defdo.DevIdp.Config
+  alias Defdo.DevIdp.Keys
   alias Defdo.DevIdp.State
   alias Defdo.DevIdp.Store
   alias Defdo.DevIdp.Web.Router
@@ -77,6 +78,7 @@ defmodule Defdo.DevIdp do
     children = [
       {State, {config, boot}},
       Store,
+      Keys,
       Supervisor.child_spec(
         {Bandit, plug: {Router, config}, ip: {127, 0, 0, 1}, port: config.port, scheme: :http},
         id: @listener
