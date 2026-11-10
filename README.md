@@ -75,6 +75,9 @@ becomes `ready` as soon as the records exist.
 
 - The listener binds `127.0.0.1`, and every request from a non-loopback peer gets 404.
 - The server never starts while a site record points at a real IdP.
+- It declares itself with the mark `defdo-dev-idp` (field `defdo_idp_mark`).
+  defdo_auth_client refuses a marked identity provider outside `:dev` and `:test`.
+  The mark is self-declared: it catches a mistake, it does not stop an attacker.
 
 ## Development
 
