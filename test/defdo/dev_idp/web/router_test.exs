@@ -66,6 +66,23 @@ defmodule Defdo.DevIdp.Web.RouterTest do
     assert response.body["scopes_supported"] == ["ai:admin", "openid", "profile"]
   end
 
+  test "the router refuses a non-loopback peer on a page that exists" do
+    start()
+    config = Defdo.DevIdp.State.config()
+    opts = Defdo.DevIdp.Web.Router.init(config)
+
+    local = Plug.Test.conn(:get, "/") |> Defdo.DevIdp.Web.Router.call(opts)
+    assert local.status == 200
+
+    remote =
+      Plug.Test.conn(:get, "/")
+      |> Map.put(:remote_ip, {10, 0, 0, 5})
+      |> Defdo.DevIdp.Web.Router.call(opts)
+
+    assert remote.status == 404
+    assert remote.halted
+  end
+
   test "an unknown path is 404" do
     start()
     assert Fixtures.get("/nope").status == 404
