@@ -42,7 +42,7 @@ defmodule Defdo.DevIdp.Web.RouterTest do
     assert body =~ "&lt;script&gt;"
   end
 
-  test "discovery has the nine keys plus scopes_supported, on the bound port" do
+  test "discovery has the ten keys plus scopes_supported, on the bound port" do
     start()
     response = Fixtures.get("/.well-known/openid-configuration")
     issuer = "http://localhost:#{Defdo.DevIdp.port()}"
@@ -52,6 +52,7 @@ defmodule Defdo.DevIdp.Web.RouterTest do
     assert response.body |> Map.keys() |> Enum.sort() == [
              "authorization_endpoint",
              "code_challenge_methods_supported",
+             "defdo_idp_mark",
              "grant_types_supported",
              "introspection_endpoint",
              "issuer",
@@ -65,6 +66,7 @@ defmodule Defdo.DevIdp.Web.RouterTest do
     assert response.body["introspection_endpoint"] == issuer <> "/oauth/introspect"
     assert response.body["grant_types_supported"] == ["authorization_code"]
     refute "plain" in response.body["code_challenge_methods_supported"]
+    assert response.body["defdo_idp_mark"] == "defdo-dev-idp"
 
     assert response.body["issuer"] == issuer
     assert response.body["authorization_endpoint"] == issuer <> "/oauth/authorize"
