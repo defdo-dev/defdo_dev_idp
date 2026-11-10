@@ -60,19 +60,30 @@ defmodule Defdo.DevIdp.BootTest do
   end
 
   describe "check/1 against Defdo.AuthClient.Site (the app record as the vault Runtime writes it)" do
+    # `site:` config may only name the vault project; the record itself lives
+    # where the vault Runtime writes it.
     setup do
-      previous = Application.get_env(:defdo_auth_client, Defdo.AuthClient)
-      on_exit(fn -> restore(previous) end)
+      config = Application.get_env(:defdo_auth_client, Defdo.AuthClient)
+      record = Application.get_env(:defdo_auth_client, Defdo.AuthClient.Site)
+
+      on_exit(fn ->
+        restore(Defdo.AuthClient, config)
+        restore(Defdo.AuthClient.Site, record)
+      end)
+
       :ok
     end
 
-    defp restore(nil), do: Application.delete_env(:defdo_auth_client, Defdo.AuthClient)
-    defp restore(value), do: Application.put_env(:defdo_auth_client, Defdo.AuthClient, value)
+    defp restore(key, nil), do: Application.delete_env(:defdo_auth_client, key)
+    defp restore(key, value), do: Application.put_env(:defdo_auth_client, key, value)
 
     defp put_app_record(site) do
       Application.put_env(:defdo_auth_client, Defdo.AuthClient,
-        site: [
-          vault_project: "dev_idp_test",
+        site: [vault_project: "dev_idp_test"]
+      )
+
+      Application.put_env(:defdo_auth_client, Defdo.AuthClient.Site,
+        app_record: [
           site: site,
           tenant: "00000000-0000-4000-8000-000000000001",
           connection: "dev-connection",
@@ -98,6 +109,7 @@ defmodule Defdo.DevIdp.BootTest do
 
     test "no app record is unseeded" do
       Application.delete_env(:defdo_auth_client, Defdo.AuthClient)
+      Application.delete_env(:defdo_auth_client, Defdo.AuthClient.Site)
       assert Boot.check(config(site_reader: nil)) == {:ok, :unseeded}
     end
   end
