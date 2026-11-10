@@ -26,3 +26,7 @@
 - Dev service client (`<id>-svc`) with `grant_type=client_credentials`.
 - Every seeded Site record carries `idp_mark: "defdo-dev-idp"` (vault code
   `auth.idp_mark`); a record of this dev IdP without the mark is rewritten with it.
+- Release gate: `scripts/ci/assert-no-dev-idp.sh` (`release` and `deps` modes, fail-closed)
+  and `Defdo.DevIdp.Gate.assert_absent!/1`.
+- Integration proof: a fake host signs in through the real PKCE plug, reads the real
+  `Identity`, and introspects through the real SDK.
