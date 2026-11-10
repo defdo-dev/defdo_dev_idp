@@ -24,6 +24,7 @@ defmodule Defdo.DevIdp.Web.IntrospectUserinfoTest do
       assert response.status == 200
       assert response.body["active"] == true
       assert response.body["scope"] == "openid profile ai:admin"
+      assert response.body["defdo_idp_mark"] == "defdo-dev-idp"
       assert response.body["scopes"] == ["openid", "profile", "ai:admin"]
       assert response.body["tenant"]["id"] == "00000000-0000-4000-8000-000000000001"
       assert response.body["sub"] == "dev-operator-dev-tenant"
@@ -70,6 +71,7 @@ defmodule Defdo.DevIdp.Web.IntrospectUserinfoTest do
       assert response.status == 200
       assert response.body["active"] == true
       assert response.body["scopes"] == ["openid", "profile", "ai:admin"]
+      assert response.body["defdo_idp_mark"] == "defdo-dev-idp"
       assert response.body["tenant_id"] == "00000000-0000-4000-8000-000000000001"
       assert response.body["client_id"] == "dev-gateway"
     end
@@ -131,7 +133,8 @@ defmodule Defdo.DevIdp.Web.IntrospectUserinfoTest do
                "preferred_username" => "operator@dev-tenant.dev.defdo",
                "tenant_id" => "00000000-0000-4000-8000-000000000001",
                "roles" => ["operator"],
-               "scope" => "openid profile ai:admin"
+               "scope" => "openid profile ai:admin",
+               "defdo_idp_mark" => "defdo-dev-idp"
              }
     end
 
