@@ -7,7 +7,10 @@ defmodule Defdo.DevIdp.Integration.PkceLoginTest do
 
   use ExUnit.Case, async: false
 
+  alias Defdo.AuthClient.DevGuard
+  alias Defdo.AuthClient.DevSiteError
   alias Defdo.AuthClient.SDK
+  alias Defdo.AuthClient.Site
   alias Defdo.DevIdp.FakeHost
   alias Defdo.DevIdp.Fixtures
 
@@ -21,30 +24,37 @@ defmodule Defdo.DevIdp.Integration.PkceLoginTest do
     idp = "http://localhost:#{Defdo.DevIdp.port()}"
     fake = "http://localhost:#{host_port}"
     previous = Application.get_env(:defdo_auth_client, Defdo.AuthClient)
+    previous_record = Application.get_env(:defdo_auth_client, Defdo.AuthClient.Site)
 
-    # The app record as Defdo.Vault.Runtime writes it.
     Application.put_env(:defdo_auth_client, Defdo.AuthClient,
-      site: [
-        vault_project: "test",
+      site: [vault_project: "test"],
+      introspection: [internal_api_token: "dev-internal-token"]
+    )
+
+    # The app record where Defdo.Vault.Runtime writes it, mark included.
+    Application.put_env(:defdo_auth_client, Defdo.AuthClient.Site,
+      app_record: [
         site: idp,
         tenant: @tenant_id,
         connection: "dev-connection",
         client_id: "dev-gateway",
         client_secret: "dev-gateway-secret",
         redirect_uri: fake <> "/oauth2/defdo_auth",
-        scopes: "openid profile ai:admin"
-      ],
-      introspection: [internal_api_token: "dev-internal-token"]
+        scopes: "openid profile ai:admin",
+        idp_mark: "defdo-dev-idp"
+      ]
     )
 
     on_exit(fn ->
-      if previous,
-        do: Application.put_env(:defdo_auth_client, Defdo.AuthClient, previous),
-        else: Application.delete_env(:defdo_auth_client, Defdo.AuthClient)
+      restore(Defdo.AuthClient, previous)
+      restore(Defdo.AuthClient.Site, previous_record)
     end)
 
     %{idp: idp, fake: fake}
   end
+
+  defp restore(key, nil), do: Application.delete_env(:defdo_auth_client, key)
+  defp restore(key, value), do: Application.put_env(:defdo_auth_client, key, value)
 
   # ── a minimal cookie jar over Req ────────────────────────────────────────────
 
@@ -155,6 +165,37 @@ defmodule Defdo.DevIdp.Integration.PkceLoginTest do
     assert payload["active"] == true
     assert payload["tenant"] == %{"id" => @tenant_id}
     assert "ai:admin" in payload["scopes"]
+  end
+
+  describe "outside :dev and :test, the real client refuses this dev IdP by its mark" do
+    setup do
+      on_exit(fn -> Application.put_env(:defdo_auth_client, :env, :test) end)
+      :ok
+    end
+
+    test "discovery, userinfo and the seeded-shape record are all refused", ctx do
+      {_authorize_url, _callback_url, _callback, jar} = sign_in(ctx)
+      {whoami, _jar} = request(:get, ctx.fake <> "/whoami", jar)
+      {discovery, _jar} = request(:get, ctx.idp <> "/.well-known/openid-configuration", %{})
+
+      {userinfo, _jar} =
+        request(:get, ctx.idp <> "/openid/userinfo", %{},
+          auth: {:bearer, whoami.body["access_token"]}
+        )
+
+      assert DevGuard.check_claims(userinfo.body) == :ok
+
+      Application.put_env(:defdo_auth_client, :env, :prod)
+
+      error =
+        assert_raise DevSiteError, fn ->
+          DevGuard.check_metadata!("https://idp.example.test", discovery.body)
+        end
+
+      assert error.mark == "discovery defdo_idp_mark"
+      assert DevGuard.check_claims(userinfo.body) == {:error, {:dev_idp_mark, "defdo_idp_mark"}}
+      assert_raise DevSiteError, fn -> Site.resolve(%{}) end
+    end
   end
 
   test "a host without a session is not signed in", ctx do
