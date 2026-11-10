@@ -24,3 +24,5 @@
 - `mix defdo_dev_idp.seed`: tenants through `Defdo.Tenant.Provision`, Site records through
   `Defdo.AuthClient.Site.put/2`; idempotent; refuses foreign records and non-dev envs.
 - Dev service client (`<id>-svc`) with `grant_type=client_credentials`.
+- Every seeded Site record carries `idp_mark: "defdo-dev-idp"` (vault code
+  `auth.idp_mark`); a record of this dev IdP without the mark is rewritten with it.

@@ -122,6 +122,9 @@ Rules:
 - Records are written only through `Defdo.AuthClient.Site.put/2`, the same writer hosts
   use for their own records. There is no second record shape.
 - A record that points at another site is never overwritten; the task stops with an error.
+- Every record carries `idp_mark: "defdo-dev-idp"` (vault code `auth.idp_mark`). A record
+  of this dev IdP written before the mark existed is rewritten with it; `app_record_extra`
+  cannot remove it. A host vault that declares `auth.idp_mark` gets it from this task.
 - The task refuses to run unless `config :defdo_auth_client, :env` is `:dev` or `:test`.
 - Sample data is invented (`Defdo Red (sample)`, `Acme (sample)`). Never seed a real
   customer, email or phone.

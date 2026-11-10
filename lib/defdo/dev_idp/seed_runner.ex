@@ -9,7 +9,9 @@ defmodule Defdo.DevIdp.SeedRunner do
     4. a boot re-check, so a running dev IdP becomes `ready`.
 
   Every record is written through `Defdo.AuthClient.Site.put/2`, the same writer
-  hosts use. A second run changes nothing. A record that points at another site
+  hosts use, and carries the dev-IdP mark (`idp_mark`, vault code
+  `auth.idp_mark`). A second run changes nothing; a record of this dev IdP
+  without the mark is rewritten with it. A record that points at another site
   is never overwritten: this task only replaces what it could have written.
 
   `opts[:provision_opts]` is merged over the provision call's options. It is a
@@ -20,6 +22,7 @@ defmodule Defdo.DevIdp.SeedRunner do
   alias Defdo.AuthClient.Site
   alias Defdo.AuthClient.Site.Client
   alias Defdo.DevIdp.Config
+  alias Defdo.DevIdp.Mark
   alias Defdo.Tenant.Context
   alias Defdo.Tenant.Provision
   alias Defdo.Tenant.Provision.Result
@@ -157,7 +160,8 @@ defmodule Defdo.DevIdp.SeedRunner do
   defp app_record_for(config, client) do
     desired = app_content(config)
 
-    if client.client_id == desired["client_id"] and client.tenant == desired["tenant"] do
+    if client.client_id == desired["client_id"] and client.tenant == desired["tenant"] and
+         marked?(client) do
       {:ok, "app record: unchanged"}
     else
       write_app_record(config)
@@ -205,6 +209,7 @@ defmodule Defdo.DevIdp.SeedRunner do
       "internal_api_token" => config.internal_api_token
     }
     |> Map.merge(config.app_record_extra)
+    |> put_mark()
   end
 
   # ── customer records ────────────────────────────────────────────────────────
@@ -234,9 +239,17 @@ defmodule Defdo.DevIdp.SeedRunner do
     base = base_url(config)
 
     case Site.resolve(%{tenant_id: tenant_id}) do
-      {:ok, %Client{site: ^base}} -> {:ok, "site record #{tenant_id}: unchanged"}
+      {:ok, %Client{site: ^base} = client} -> customer_record_for(config, tenant_id, client)
       {:ok, %Client{site: site}} -> {:error, {:foreign_site_record, tenant_id, site}}
       {:error, _missing} -> write_customer_record(config, tenant_id)
+    end
+  end
+
+  defp customer_record_for(config, tenant_id, client) do
+    if marked?(client) do
+      {:ok, "site record #{tenant_id}: unchanged"}
+    else
+      write_customer_record(config, tenant_id)
     end
   end
 
@@ -260,9 +273,16 @@ defmodule Defdo.DevIdp.SeedRunner do
       "scopes" => scopes(profiles)
     }
     |> Map.merge(config.app_record_extra)
+    |> put_mark()
   end
 
   # ── helpers ─────────────────────────────────────────────────────────────────
+
+  # The mark goes on last: `app_record_extra` cannot remove or replace it.
+  defp put_mark(content), do: Map.put(content, Mark.record_field(), Mark.value())
+
+  # A record of this dev IdP written before the mark existed counts as changed.
+  defp marked?(%Client{idp_mark: mark}), do: mark == Mark.value()
 
   defp recheck_line do
     if Process.whereis(Defdo.DevIdp) do
