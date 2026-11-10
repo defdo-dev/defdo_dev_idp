@@ -2,6 +2,8 @@ defmodule Defdo.DevIdp.Web.RouterTest do
   use ExUnit.Case, async: false
 
   alias Defdo.DevIdp.Fixtures
+  alias Defdo.DevIdp.State
+  alias Defdo.DevIdp.Web.Router
 
   defp start(overrides \\ []), do: start_supervised!({Defdo.DevIdp, Fixtures.opts(overrides)})
 
@@ -68,16 +70,16 @@ defmodule Defdo.DevIdp.Web.RouterTest do
 
   test "the router refuses a non-loopback peer on a page that exists" do
     start()
-    config = Defdo.DevIdp.State.config()
-    opts = Defdo.DevIdp.Web.Router.init(config)
+    config = State.config()
+    opts = Router.init(config)
 
-    local = Plug.Test.conn(:get, "/") |> Defdo.DevIdp.Web.Router.call(opts)
+    local = Plug.Test.conn(:get, "/") |> Router.call(opts)
     assert local.status == 200
 
     remote =
       Plug.Test.conn(:get, "/")
       |> Map.put(:remote_ip, {10, 0, 0, 5})
-      |> Defdo.DevIdp.Web.Router.call(opts)
+      |> Router.call(opts)
 
     assert remote.status == 404
     assert remote.halted
