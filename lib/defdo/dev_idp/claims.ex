@@ -5,11 +5,13 @@ defmodule Defdo.DevIdp.Claims do
 
   The active payload carries both scope spellings (`scope` string, `scopes`
   list) and all three tenant spellings (`tenant.id`, `tenant_id`) on purpose:
-  host readers accept either. The inactive answer is always exactly
-  `%{"active" => false}`.
+  host readers accept either. Every active answer and userinfo carry the
+  dev-IdP mark (`defdo_idp_mark`). The inactive answer is always exactly
+  `%{"active" => false}`, with no mark.
   """
 
   alias Defdo.DevIdp.Config
+  alias Defdo.DevIdp.Mark
   alias Defdo.DevIdp.Profile
   alias Defdo.DevIdp.Store
 
@@ -54,7 +56,8 @@ defmodule Defdo.DevIdp.Claims do
       "scopes" => record.scope,
       "tenant" => %{"id" => profile.tenant_id},
       "tenant_id" => profile.tenant_id,
-      "roles" => [profile.role]
+      "roles" => [profile.role],
+      Mark.field() => Mark.value()
     }
   end
 
@@ -68,7 +71,8 @@ defmodule Defdo.DevIdp.Claims do
       "preferred_username" => profile.email,
       "tenant_id" => profile.tenant_id,
       "roles" => [profile.role],
-      "scope" => Enum.join(record.scope, " ")
+      "scope" => Enum.join(record.scope, " "),
+      Mark.field() => Mark.value()
     }
   end
 end
