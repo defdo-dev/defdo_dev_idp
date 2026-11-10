@@ -32,10 +32,7 @@ defmodule Defdo.DevIdp.MixProject do
       {:plug, "~> 1.16"},
       {:jason, "~> 1.4"},
       {:jose, "~> 1.11"},
-      # WORK BRANCH ONLY: defdo_auth_client 0.15.0 is not on Hex yet (PR #38).
-      # Replace with {:defdo_auth_client, "~> 0.15", organization: :defdo} before
-      # this branch is marked ready.
-      {:defdo_auth_client, path: "../defdo_auth_client.wt-site-contract"},
+      {:defdo_auth_client, "~> 0.15", organization: :defdo},
       # Defdo.AuthClient.Site is only compiled when these two are present.
       {:defdo_vault, "~> 0.21", organization: :defdo},
       {:defdo_tenant, "~> 0.24", organization: :defdo},
