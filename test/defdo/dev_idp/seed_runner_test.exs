@@ -58,6 +58,7 @@ defmodule Defdo.DevIdp.SeedRunnerTest do
     assert client.scopes == ~w(openid profile ai:admin)
     assert client.service_client.client_id == "dev-gateway-svc"
     assert client.service_client.scopes == ["api:admin"]
+    assert client.idp_mark == "defdo-dev-idp"
   end
 
   test "a customer record is written inside that tenant's context, with that tenant's scopes" do
@@ -69,6 +70,7 @@ defmodule Defdo.DevIdp.SeedRunnerTest do
     assert client.site == "http://localhost:4100"
     assert client.tenant == "acme"
     assert client.scopes == ~w(openid profile)
+    assert client.idp_mark == "defdo-dev-idp"
   end
 
   test "a second run changes nothing" do
@@ -139,6 +141,47 @@ defmodule Defdo.DevIdp.SeedRunnerTest do
     assert {:ok, lines} = run()
     assert "app record: written" in lines
     assert {:ok, %{client_id: "dev-gateway"}} = Site.resolve(%{})
+  end
+
+  test "an app record for this dev IdP without the mark is rewritten with it" do
+    put_app_record(
+      site: "http://localhost:4100",
+      tenant: @operator,
+      client_id: "dev-gateway",
+      connection: "dev-connection",
+      redirect_uri: "http://localhost:4000/oauth2/defdo_auth"
+    )
+
+    assert {:ok, lines} = run()
+    assert "app record: written" in lines
+    assert {:ok, %{idp_mark: "defdo-dev-idp"}} = Site.resolve(%{})
+
+    assert {:ok, again} = run()
+    assert "app record: unchanged" in again
+  end
+
+  test "a customer record for this dev IdP without the mark is rewritten with it" do
+    FakeConsumer.put_customer("acme", %{
+      "site" => "http://localhost:4100",
+      "tenant" => "acme",
+      "client_id" => "dev-gateway",
+      "connection" => "dev-connection",
+      "redirect_uri" => "http://localhost:4000/oauth2/defdo_auth"
+    })
+
+    assert {:ok, lines} = run()
+    assert "site record acme: written" in lines
+    assert {:ok, %{idp_mark: "defdo-dev-idp"}} = Site.resolve(%{tenant_id: "acme"})
+
+    assert {:ok, again} = run()
+    assert "site record acme: unchanged" in again
+  end
+
+  test "app_record_extra cannot remove or replace the mark" do
+    assert {:ok, _lines} = run(config(app_record_extra: %{"idp_mark" => ""}))
+
+    assert {:ok, %{idp_mark: "defdo-dev-idp"}} = Site.resolve(%{})
+    assert {:ok, %{idp_mark: "defdo-dev-idp"}} = Site.resolve(%{tenant_id: "acme"})
   end
 
   test "without a provision repo the run stops before anything is written" do
