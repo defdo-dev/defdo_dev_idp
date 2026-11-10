@@ -58,6 +58,7 @@ defmodule Defdo.DevIdp.Web.AuthorizeTokenTest do
       assert claims["aud"] == "dev-gateway"
       assert claims["iss"] == "http://localhost:#{Defdo.DevIdp.port()}"
       assert claims["nonce"] == "nonce-1"
+      assert claims["defdo_idp_mark"] == "defdo-dev-idp"
       assert claims["tenant_id"] == "00000000-0000-4000-8000-000000000001"
       assert claims["roles"] == ["operator"]
       assert claims["exp"] - claims["iat"] == 3600
@@ -71,6 +72,7 @@ defmodule Defdo.DevIdp.Web.AuthorizeTokenTest do
         JOSE.JWT.verify_strict(JOSE.JWK.from_map(key), ["RS256"], response.body["id_token"])
 
       refute Map.has_key?(claims, "nonce")
+      assert claims["defdo_idp_mark"] == "defdo-dev-idp"
     end
   end
 
