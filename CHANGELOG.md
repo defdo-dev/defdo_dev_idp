@@ -17,3 +17,4 @@
   `/openid/authorize`.
 - PKCE S256 only; single-use codes (60 s); token endpoint with body or Basic client
   authentication; RS256 id_token and JWKS.
+- Every id_token carries the dev-IdP mark claim `defdo_idp_mark`.

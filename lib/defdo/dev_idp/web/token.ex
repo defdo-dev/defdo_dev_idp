@@ -12,6 +12,7 @@ defmodule Defdo.DevIdp.Web.Token do
 
   alias Defdo.DevIdp.Config
   alias Defdo.DevIdp.Keys
+  alias Defdo.DevIdp.Mark
   alias Defdo.DevIdp.PKCE
   alias Defdo.DevIdp.Store
 
@@ -122,7 +123,8 @@ defmodule Defdo.DevIdp.Web.Token do
       "email" => profile.email,
       "name" => profile.name,
       "tenant_id" => profile.tenant_id,
-      "roles" => [profile.role]
+      "roles" => [profile.role],
+      Mark.field() => Mark.value()
     }
 
     if stored.nonce, do: Map.put(base, "nonce", stored.nonce), else: base
