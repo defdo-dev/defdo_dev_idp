@@ -40,8 +40,8 @@ defmodule Defdo.DevIdp.Boot do
     end
   end
 
-  # The app site plus the customer tenants' sites. `site_reader` exists so the
-  # package's own tests can drive each outcome; hosts never set it.
+  # The app site plus the customer tenants' sites. `site_reader` is a start
+  # option of the server, never application config; it defaults to `Site`.
   defp read_sites(%Config{site_reader: reader}, tenant_ids) when is_function(reader, 1) do
     {:ok, reader.(tenant_ids)}
   rescue

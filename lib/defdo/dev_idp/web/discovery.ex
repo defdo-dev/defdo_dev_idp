@@ -1,9 +1,10 @@
 defmodule Defdo.DevIdp.Web.Discovery do
   @moduledoc """
-  The OpenID Connect discovery document.
+  The OpenID Connect Discovery 1.0 document.
 
-  Nine keys plus `scopes_supported`. The issuer uses the port the listener is
-  actually bound to, so a server started on `port: 0` advertises a reachable URL.
+  Nine keys plus `scopes_supported`. PKCE is `S256` only: `plain` is never
+  advertised. The issuer uses the port the listener is actually bound to, so a
+  server started on `port: 0` advertises a reachable URL.
   """
 
   alias Defdo.DevIdp.Config
@@ -18,10 +19,10 @@ defmodule Defdo.DevIdp.Web.Discovery do
       "token_endpoint" => issuer <> "/oauth/token",
       "userinfo_endpoint" => issuer <> "/openid/userinfo",
       "jwks_uri" => issuer <> "/.well-known/jwks.json",
+      "introspection_endpoint" => issuer <> "/oauth/introspect",
       "response_types_supported" => ["code"],
-      "subject_types_supported" => ["public"],
-      "id_token_signing_alg_values_supported" => ["RS256"],
       "code_challenge_methods_supported" => ["S256"],
+      "grant_types_supported" => ["authorization_code"],
       "scopes_supported" => scopes(config)
     }
   end

@@ -29,6 +29,34 @@ defmodule Defdo.DevIdp.ConfigTest do
     assert Process.whereis(Defdo.DevIdp) == nil
   end
 
+  describe "site_reader is a start option, never application config" do
+    setup do
+      on_exit(fn -> Application.delete_env(:defdo_dev_idp, :site_reader) end)
+    end
+
+    test "a reader in the application environment is ignored" do
+      Application.put_env(:defdo_dev_idp, :site_reader, fn _ids ->
+        ["https://idp.example.test"]
+      end)
+
+      assert {:ok, %Config{site_reader: nil}} =
+               Config.fetch(Keyword.delete(Fixtures.opts(), :site_reader))
+    end
+
+    test "a reader passed as a start option is kept" do
+      reader = fn _ids -> [] end
+
+      assert {:ok, %Config{site_reader: ^reader}} =
+               Config.fetch(Fixtures.opts(site_reader: reader))
+    end
+
+    test "a reader that is not a function of one argument is refused" do
+      assert_raise ArgumentError, ~r/:site_reader/, fn ->
+        Config.fetch(Fixtures.opts(site_reader: :not_a_function))
+      end
+    end
+  end
+
   test "a complete block builds the config" do
     assert {:ok, %Config{host: :defdo_gateway, client: %{id: "dev-gateway"}} = config} =
              Config.fetch(Fixtures.opts())

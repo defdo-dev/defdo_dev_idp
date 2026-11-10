@@ -52,15 +52,19 @@ defmodule Defdo.DevIdp.Web.RouterTest do
     assert response.body |> Map.keys() |> Enum.sort() == [
              "authorization_endpoint",
              "code_challenge_methods_supported",
-             "id_token_signing_alg_values_supported",
+             "grant_types_supported",
+             "introspection_endpoint",
              "issuer",
              "jwks_uri",
              "response_types_supported",
              "scopes_supported",
-             "subject_types_supported",
              "token_endpoint",
              "userinfo_endpoint"
            ]
+
+    assert response.body["introspection_endpoint"] == issuer <> "/oauth/introspect"
+    assert response.body["grant_types_supported"] == ["authorization_code"]
+    refute "plain" in response.body["code_challenge_methods_supported"]
 
     assert response.body["issuer"] == issuer
     assert response.body["authorization_endpoint"] == issuer <> "/oauth/authorize"
