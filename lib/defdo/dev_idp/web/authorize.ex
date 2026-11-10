@@ -166,7 +166,9 @@ defmodule Defdo.DevIdp.Web.Authorize do
     conn |> put_resp_content_type("text/html") |> send_resp(200, body)
   end
 
-  defp session_profile(conn, config) do
+  @doc "The profile of the dev session the request carries, if it is still live."
+  @spec session_profile(Plug.Conn.t(), Config.t()) :: Profile.t() | nil
+  def session_profile(conn, config) do
     conn = fetch_cookies(conn)
 
     with {:ok, key} <- Store.get_session(conn.req_cookies[@cookie]),

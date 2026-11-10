@@ -4,10 +4,10 @@ A dev-only mock IdP. It speaks the subset of the `defdo_auth` OAuth2/OIDC flow t
 `defdo_auth_client` uses, against the `Defdo.AuthClient.Site` contract, so a defdo app
 signs in locally through its unchanged plugs. A production build carries none of it.
 
-Status: slices 04–05 of the dev-login set (`guides/slices/dev-idp/`). The server boots,
+Status: slices 04–06 of the dev-login set (`guides/slices/dev-idp/`). The server boots,
 enforces its two safety rules, and serves the index, discovery, the authorize picker, the
-token endpoint and JWKS. Introspection, userinfo and sign-out arrive in slice 06, the
-seed task in 07, the release gate in 08.
+token endpoint, JWKS, both introspection endpoints, userinfo and sign-out. The seed task
+arrives in slice 07, the release gate in 08.
 
 ## Install in a host
 

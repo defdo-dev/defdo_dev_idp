@@ -5,8 +5,8 @@ defmodule Defdo.DevIdp.Web.Pages do
 
   alias Defdo.DevIdp.Config
 
-  @spec index(Config.t(), :ready | :unseeded) :: String.t()
-  def index(%Config{} = config, boot) do
+  @spec index(Config.t(), :ready | :unseeded, Defdo.DevIdp.Profile.t() | nil) :: String.t()
+  def index(%Config{} = config, boot, signed_in \\ nil) do
     """
     <!doctype html>
     <html lang="en">
@@ -19,9 +19,14 @@ defmodule Defdo.DevIdp.Web.Pages do
     <ul>
     #{Enum.map_join(config.profiles, "\n", &profile/1)}
     </ul>
-    <form method="post" action="/sign-out">
+    <h2>Dev session</h2>
+    <p>#{session(signed_in)}</p>
+    <form method="post" action="/session/clear">
     <button type="submit">Sign out everywhere</button>
     </form>
+    <p>Signing out clears every dev session, so the next sign-in shows the picker again.
+    It does not revoke tokens: a host keeps its own session until you clear the host
+    cookie or the token expires.</p>
     </main>
     </body>
     </html>
@@ -71,6 +76,9 @@ defmodule Defdo.DevIdp.Web.Pages do
 
   defp hidden(_name, nil), do: ""
   defp hidden(name, value), do: ~s(<input type="hidden" name="#{e(name)}" value="#{e(value)}">)
+
+  defp session(nil), do: "No dev session."
+  defp session(profile), do: "Signed in as " <> e(profile.label) <> "."
 
   defp hint(:unseeded), do: " — no Site record yet. Run <code>mix defdo_dev_idp.seed</code>."
   defp hint(_boot), do: ""
