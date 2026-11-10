@@ -96,15 +96,12 @@ defmodule Defdo.DevIdp.SeedRunnerTest do
   end
 
   test "an app record that points at another site is refused and left untouched" do
-    Application.put_env(:defdo_auth_client, Defdo.AuthClient,
-      site: [
-        vault_project: "dev_idp_test",
-        site: "https://idp.example.test",
-        tenant: "real-tenant",
-        client_id: "real-client",
-        connection: "real-connection",
-        redirect_uri: "https://app.example.test/cb"
-      ]
+    put_app_record(
+      site: "https://idp.example.test",
+      tenant: "real-tenant",
+      client_id: "real-client",
+      connection: "real-connection",
+      redirect_uri: "https://app.example.test/cb"
     )
 
     assert run() == {:error, {:foreign_app_record, "https://idp.example.test"}}
@@ -131,15 +128,12 @@ defmodule Defdo.DevIdp.SeedRunnerTest do
   end
 
   test "an app record for this dev IdP with another client is rewritten" do
-    Application.put_env(:defdo_auth_client, Defdo.AuthClient,
-      site: [
-        vault_project: "dev_idp_test",
-        site: "http://localhost:4100",
-        tenant: @operator,
-        client_id: "stale-client",
-        connection: "dev-connection",
-        redirect_uri: "http://localhost:4000/oauth2/defdo_auth"
-      ]
+    put_app_record(
+      site: "http://localhost:4100",
+      tenant: @operator,
+      client_id: "stale-client",
+      connection: "dev-connection",
+      redirect_uri: "http://localhost:4000/oauth2/defdo_auth"
     )
 
     assert {:ok, lines} = run()

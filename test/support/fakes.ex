@@ -120,9 +120,18 @@ defmodule Defdo.DevIdp.FakeConsumer do
 
   defp runtime_put("internal_api_token", _value), do: :ok
 
+  # The Runtime writes the app record under `Defdo.AuthClient.Site, :app_record`,
+  # never into the host's `site:` config.
   defp runtime_put(key, value) do
-    current = Application.get_env(:defdo_auth_client, Defdo.AuthClient, [])
-    site = current |> Keyword.get(:site, []) |> Keyword.put(String.to_existing_atom(key), value)
-    Application.put_env(:defdo_auth_client, Defdo.AuthClient, Keyword.put(current, :site, site))
+    current = Application.get_env(:defdo_auth_client, Defdo.AuthClient.Site, [])
+
+    record =
+      current |> Keyword.get(:app_record, []) |> Keyword.put(String.to_existing_atom(key), value)
+
+    Application.put_env(
+      :defdo_auth_client,
+      Defdo.AuthClient.Site,
+      Keyword.put(current, :app_record, record)
+    )
   end
 end

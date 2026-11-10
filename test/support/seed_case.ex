@@ -11,13 +11,14 @@ defmodule Defdo.DevIdp.SeedCase do
 
   using do
     quote do
-      import Defdo.DevIdp.SeedCase, only: [provision_opts: 0, vault_tenant: 0]
+      import Defdo.DevIdp.SeedCase, only: [provision_opts: 0, vault_tenant: 0, put_app_record: 1]
     end
   end
 
   setup do
     previous = %{
       auth: Application.get_env(:defdo_auth_client, Defdo.AuthClient),
+      record: Application.get_env(:defdo_auth_client, Defdo.AuthClient.Site),
       consumer: Application.get_env(:defdo_vault, :consumer),
       credentials: Application.get_env(:defdo_vault, :credentials)
     }
@@ -25,6 +26,8 @@ defmodule Defdo.DevIdp.SeedCase do
     Application.put_env(:defdo_auth_client, Defdo.AuthClient,
       site: [vault_project: "dev_idp_test"]
     )
+
+    Application.delete_env(:defdo_auth_client, Defdo.AuthClient.Site)
 
     Application.put_env(:defdo_vault, :consumer, FakeConsumer)
     Application.put_env(:defdo_vault, :credentials, transport: :local, tenant_id: @vault_tenant)
@@ -35,6 +38,7 @@ defmodule Defdo.DevIdp.SeedCase do
 
     on_exit(fn ->
       restore(:defdo_auth_client, Defdo.AuthClient, previous.auth)
+      restore(:defdo_auth_client, Defdo.AuthClient.Site, previous.record)
       restore(:defdo_vault, :consumer, previous.consumer)
       restore(:defdo_vault, :credentials, previous.credentials)
     end)
@@ -43,6 +47,11 @@ defmodule Defdo.DevIdp.SeedCase do
   end
 
   def vault_tenant, do: @vault_tenant
+
+  @doc "Puts an app record in place, where the vault Runtime writes it."
+  def put_app_record(record) do
+    Application.put_env(:defdo_auth_client, Defdo.AuthClient.Site, app_record: record)
+  end
 
   @doc "Provision options that need no database: the fake store and an identity transaction."
   def provision_opts do
