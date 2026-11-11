@@ -17,7 +17,7 @@ seed task in 07, the release gate in 08.
 ```
 
 ```elixir
-# config/config.exs
+# config/config.exs — required: without it the dev IdP treats the host as :prod and refuses
 config :defdo_auth_client, :env, config_env()
 
 # config/dev.exs — test.exs sets nothing: tests start the server with explicit options
@@ -64,7 +64,7 @@ at boot with `UndefinedFunctionError Defdo.DevIdp.child_spec/1`.
 |---|---|---|
 | `ready` | every configured site points at this dev IdP | the server answers normally |
 | `unseeded` | no site record exists yet (a fresh database) | the index works; every other page is 503 "run `mix defdo_dev_idp.seed`" |
-| refused | a site points at another IdP, the config block is incomplete, or the records cannot be read | `Defdo.DevIdp.BootError`; the host does not boot |
+| refused | the host environment is not `:dev`/`:test` (or is undeclared), a site points at another IdP, the config block is incomplete, or the records cannot be read | `Defdo.DevIdp.BootError`; the host does not boot |
 
 Without `enabled: true` the child returns `:ignore`.
 
@@ -74,6 +74,11 @@ becomes `ready` as soon as the records exist.
 ## Safety rules
 
 - The listener binds `127.0.0.1`, and every request from a non-loopback peer gets 404.
+- The server never starts outside `:dev` and `:test`. It reads the host environment the way
+  defdo_auth_client does (`config :defdo_auth_client, :env`, default `:prod`; never
+  `Mix.env/0`), so a host that does not declare `config :defdo_auth_client, :env,
+  config_env()` is refused with `{:env_not_allowed, :prod}` before any site record is read.
+  The host's `only: [:dev, :test]` is the first line; this guard is the second.
 - The server never starts while a site record points at a real IdP.
 - It declares itself with the mark `defdo-dev-idp` (field `defdo_idp_mark`).
   defdo_auth_client refuses a marked identity provider outside `:dev` and `:test`.
