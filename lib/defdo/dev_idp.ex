@@ -11,15 +11,22 @@ defmodule Defdo.DevIdp do
     * `:unseeded` — no site record exists yet. Every page but the index answers
       503 until `mix defdo_dev_idp.seed` has run.
 
-  It refuses to start (`Defdo.DevIdp.BootError`) when a configured site points
-  elsewhere, or when the `config :defdo_dev_idp` block is incomplete. Without
-  `enabled: true` it returns `:ignore`.
+  It refuses to start (`Defdo.DevIdp.BootError`) when the host environment is
+  not `:dev` or `:test`, when a configured site points elsewhere, or when the
+  `config :defdo_dev_idp` block is incomplete. Without `enabled: true` it
+  returns `:ignore`.
+
+  The host environment is read the way defdo_auth_client reads it
+  (`Defdo.AuthClient.Env.current/0`: `config :defdo_auth_client, :env`,
+  defaulting to `:prod`), never `Mix.env/0`. A host that does not declare it
+  is treated as `:prod` and refused.
   """
 
   use Supervisor
 
   require Logger
 
+  alias Defdo.AuthClient.Env
   alias Defdo.DevIdp.Boot
   alias Defdo.DevIdp.BootError
   alias Defdo.DevIdp.Config
@@ -29,6 +36,7 @@ defmodule Defdo.DevIdp do
   alias Defdo.DevIdp.Web.Router
 
   @listener :listener
+  @allowed_envs [:dev, :test]
 
   @spec start_link(keyword()) :: Supervisor.on_start() | :ignore
   def start_link(opts \\ []) do
@@ -88,7 +96,15 @@ defmodule Defdo.DevIdp do
     Supervisor.init(children, strategy: :rest_for_one)
   end
 
+  # Runs before the boot check, so a refused host never reads its site records.
   defp start_checked(config) do
+    case Env.current() do
+      host_env when host_env in @allowed_envs -> start_booted(config)
+      host_env -> raise BootError, reason: {:env_not_allowed, host_env}, host: config.host
+    end
+  end
+
+  defp start_booted(config) do
     case Boot.check(config) do
       {:ok, boot} ->
         with {:ok, pid} <- Supervisor.start_link(__MODULE__, {config, boot}, name: __MODULE__) do

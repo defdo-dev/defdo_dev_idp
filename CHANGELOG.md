@@ -4,6 +4,11 @@
 
 ### Added
 
+- Production guard: `Defdo.DevIdp` refuses to start (`BootError` `{:env_not_allowed, env}`,
+  no supervisor, no site read) unless the host environment is `:dev` or `:test`. The env is
+  read through `Defdo.AuthClient.Env.current/0` (`config :defdo_auth_client, :env`, default
+  `:prod`), so an undeclared env is refused. Requires defdo_auth_client `~> 0.15.1`.
+
 - Host-supervised `Defdo.DevIdp` server on `127.0.0.1` (no package `mod:`).
 - Boot check against `Defdo.AuthClient.Site.sites/1` with three outcomes: ready,
   unseeded, refused (`Defdo.DevIdp.BootError`).
