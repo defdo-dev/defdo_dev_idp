@@ -1,6 +1,7 @@
 defmodule Defdo.DevIdp.BootError do
   @moduledoc """
-  Raised when the dev IdP refuses to start: the config block is incomplete, a
+  Raised when the dev IdP refuses to start: the host environment is not
+  `:dev`/`:test`, the config block is incomplete, a
   configured site points at another IdP, or the site records cannot be read.
   """
 
@@ -17,6 +18,13 @@ defmodule Defdo.DevIdp.BootError do
   defp describe({:missing_config, keys}) do
     "`config :defdo_dev_idp` is missing " <>
       Enum.map_join(keys, ", ", &inspect/1) <> ". Add the block to the host's config/dev.exs."
+  end
+
+  defp describe({:env_not_allowed, host_env}) do
+    "the host environment is #{inspect(host_env)}; the dev IdP only runs in :dev or :test. " <>
+      "Declare it in the host's config/config.exs with " <>
+      "`config :defdo_auth_client, :env, config_env()` (an undeclared env counts as :prod), " <>
+      "and never start `Defdo.DevIdp` in production."
   end
 
   defp describe({:site_mismatch, remote, expected}) do
