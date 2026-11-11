@@ -156,6 +156,16 @@ there, so a prod host that forgot to remove it fails at boot with
 (slice 08) catches it earlier anyway. In `:test` the host sets no `:defdo_dev_idp` config
 → `start_link` returns `:ignore`.
 
+### Production guard (review finding, MED)
+
+`only: [:dev, :test]` in the host's `mix.exs` keeps the package out of a prod build, but
+nothing in the package itself refused to run elsewhere. `start_checked/1` now reads the
+host environment with `Defdo.AuthClient.Env.current/0` (defdo_auth_client ~> 0.15.1:
+`Application.get_env(:defdo_auth_client, :env, :prod)`; never `Mix.env/0`) BEFORE the
+boot check. Anything but `:dev`/`:test` — including an undeclared env, which defaults to
+`:prod` — raises `BootError` `{:env_not_allowed, env}` and starts no supervisor and reads
+no site record. The host must declare `config :defdo_auth_client, :env, config_env()`.
+
 ## Process map
 
 | Activity | Where it hangs | Starts after | Stopping it stops | Owns | Alive? |
@@ -166,6 +176,8 @@ there, so a prod host that forgot to remove it fails at boot with
 
 - `config_test.exs`: missing block → `BootError` message quotes `config :defdo_dev_idp` and
   the host; `enabled: false` → `start_link` `:ignore`.
+- `env_guard_test.exs`: env `:prod` → `BootError` `{:env_not_allowed, :prod}`, no process,
+  site reader never called; env deleted (undeclared) → same; `:dev` and `:test` → starts.
 - `profile_test.exs` (as round 1, plus `tenant_id`).
 - `boot_test.exs` (app record put in env with `vault_project:`, the Runtime's output shape): remote site → `{:error, {:site_mismatch, _, _}}`
   and `start_link` raises `BootError` with no process left; matching → `{:ok, :ready}`;
@@ -190,6 +202,7 @@ mix compile --warnings-as-errors
 mix format --check-formatted
 mix credo --strict
 mix test
+grep -q "Env.current()" lib/defdo/dev_idp.ex
 grep -q "unseeded" lib/defdo/dev_idp/boot.ex
 grep -q "Site.sites(" lib/defdo/dev_idp/boot.ex
 grep -q "LoopbackOnly" lib/defdo/dev_idp/web/router.ex
@@ -198,6 +211,7 @@ grep -q "Dev IdP server" guides/PROCESS_MAP.md
 
 ## Acceptance criteria
 
+- [ ] Refuses to start (no supervisor, no site read) unless `Defdo.AuthClient.Env.current/0` is `:dev`/`:test`; tested for `:prod`, undeclared, `:dev`, `:test`.
 - [ ] No `mod:`; no `Mix.env()` in `lib/`; host-supervised child documented with the ordering rule.
 - [ ] Three boot outcomes tested by name; unseeded state serves the 503 page and recovers after `recheck/0`.
 - [ ] Boot reads only `Site.sites/1` (grep); loopback enforced twice and tested.
