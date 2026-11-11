@@ -1,0 +1,141 @@
+# ─── defdo_dev_idp Woodpecker CI/CD ──────────────────────────────────────
+#
+# Events:
+#   push / pull_request → format check, compile, test
+#   tag (semver, no v prefix) → validate + publish to Hex.pm
+#   manual              → on demand
+#   cron                → nightly CI
+#
+# Secrets (org-global in Woodpecker):
+#   hex_api_key       — Hex.pm API write key
+#   hex_org_name      — Hex organization name ("defdo")
+#   hex_org_token     — Hex organization read token
+
+# Tier 1: these steps run real container images, so they belong on the k8s
+# docker agent. Without this label Woodpecker sends the workflow to whichever
+# agent is free, and the local exec agent execs the `image:` string as a host
+# binary and dies: exec: "elixir:1.20.4": executable file not found.
+labels:
+  platform: linux/amd64
+
+when:
+  - event: [push, pull_request]
+    branch: main
+  - event: tag
+  - event: manual
+  - event: cron
+
+steps:
+  # ═══════════════════════════════════════════════════════════════════════
+  #  CI
+  # ═══════════════════════════════════════════════════════════════════════
+
+  - name: format-and-compile
+    image: elixir:1.20.4
+    when:
+      event: [push, pull_request, cron, manual]
+    environment:
+      # Registry fetches from the k3s agent time out under load (hex default 15 s),
+      # which surfaces as "Unknown package X in lockfile" on otherwise identical reruns.
+      HEX_HTTP_TIMEOUT: "120"
+      MIX_ENV: test
+      HEX_ORG_NAME:
+        from_secret: hex_org_name
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+    commands:
+      - mix do local.hex --force + local.rebar --force
+      - |
+        if [ -n "$$HEX_ORG_NAME" ] && [ -n "$$HEX_ORG_TOKEN" ]; then
+          mix hex.organization auth "$$HEX_ORG_NAME" --key "$$HEX_ORG_TOKEN"
+        fi
+      - mix deps.get
+      - mix format --check-formatted
+      - mix compile --warnings-as-errors
+      - mix credo --strict
+
+  - name: test
+    image: elixir:1.20.4
+    when:
+      event: [push, pull_request, cron, manual]
+    environment:
+      # Registry fetches from the k3s agent time out under load (hex default 15 s),
+      # which surfaces as "Unknown package X in lockfile" on otherwise identical reruns.
+      HEX_HTTP_TIMEOUT: "120"
+      MIX_ENV: test
+      HEX_ORG_NAME:
+        from_secret: hex_org_name
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+    commands:
+      - mix do local.hex --force + local.rebar --force
+      - |
+        if [ -n "$$HEX_ORG_NAME" ] && [ -n "$$HEX_ORG_TOKEN" ]; then
+          mix hex.organization auth "$$HEX_ORG_NAME" --key "$$HEX_ORG_TOKEN"
+        fi
+      - mix deps.get
+      - mix compile --warnings-as-errors
+      - mix test
+
+  # ═══════════════════════════════════════════════════════════════════════
+  #  RELEASE — tag events
+  # ═══════════════════════════════════════════════════════════════════════
+
+  - name: release-validate
+    image: elixir:1.20.4
+    when:
+      event: tag
+    environment:
+      # Registry fetches from the k3s agent time out under load (hex default 15 s),
+      # which surfaces as "Unknown package X in lockfile" on otherwise identical reruns.
+      HEX_HTTP_TIMEOUT: "120"
+      MIX_ENV: test
+      HEX_ORG_NAME:
+        from_secret: hex_org_name
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+    commands:
+      - mix do local.hex --force + local.rebar --force
+      - |
+        if [ -n "$$HEX_ORG_NAME" ] && [ -n "$$HEX_ORG_TOKEN" ]; then
+          mix hex.organization auth "$$HEX_ORG_NAME" --key "$$HEX_ORG_TOKEN"
+        fi
+      - mix deps.get
+      - mix format --check-formatted
+      - mix compile --warnings-as-errors
+      - mix credo --strict
+      - mix test
+      - MIX_ENV=dev mix deps.get
+      - MIX_ENV=dev mix hex.build
+
+  - name: hex-publish
+    image: elixir:1.20.4
+    when:
+      event: tag
+    depends_on: [release-validate]
+    environment:
+      # Registry fetches from the k3s agent time out under load (hex default 15 s),
+      # which surfaces as "Unknown package X in lockfile" on otherwise identical reruns.
+      HEX_HTTP_TIMEOUT: "120"
+      MIX_ENV: test
+      HEX_API_KEY:
+        from_secret: hex_api_key
+      HEX_ORG_NAME:
+        from_secret: hex_org_name
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+    commands:
+      - mix do local.hex --force + local.rebar --force
+      - |
+        if [ -n "$$HEX_ORG_NAME" ] && [ -n "$$HEX_ORG_TOKEN" ]; then
+          mix hex.organization auth "$$HEX_ORG_NAME" --key "$$HEX_ORG_TOKEN"
+        fi
+      - mix deps.get
+      - mix test
+      - |
+        if [ -z "$$HEX_API_KEY" ]; then
+          echo "ERROR: HEX_API_KEY is required to publish"
+          exit 1
+        fi
+      - MIX_ENV=dev mix deps.get
+      - MIX_ENV=dev mix hex.publish --yes

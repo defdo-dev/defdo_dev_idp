@@ -1,0 +1,97 @@
+# defdo_dev_idp
+
+A dev-only mock IdP. It speaks the subset of the `defdo_auth` OAuth2/OIDC flow that
+`defdo_auth_client` uses, against the `Defdo.AuthClient.Site` contract, so a defdo app
+signs in locally through its unchanged plugs. A production build carries none of it.
+
+Status: slice 04 of the dev-login set (`guides/slices/dev-idp/`). The server boots,
+serves the index and the discovery document, and enforces its two safety rules. The
+authorize, token, introspection and userinfo endpoints arrive in slices 05 and 06, the
+seed task in 07, the release gate in 08.
+
+## Install in a host
+
+```elixir
+# mix.exs
+{:defdo_dev_idp, "~> 0.1", organization: :defdo, only: [:dev, :test]}
+```
+
+```elixir
+# config/config.exs — required: without it the dev IdP treats the host as :prod and refuses
+config :defdo_auth_client, :env, config_env()
+
+# config/dev.exs — test.exs sets nothing: tests start the server with explicit options
+config :defdo_dev_idp,
+  enabled: true,
+  host: :my_host,
+  port: 4100,
+  client: [id: "dev-my-host", secret: "dev-my-host-secret"],
+  internal_api_token: "dev-internal-token",
+  redirect_uri: "http://localhost:4000/oauth2/defdo_auth",
+  profiles: [
+    %{key: :operator, label: "Operator · Defdo Red", role: "operator", tenant: "dev-tenant",
+      tenant_id: "00000000-0000-4000-8000-000000000001", scopes: ~w(openid profile)}
+  ]
+```
+
+```elixir
+# lib/my_host/application.ex — AFTER the Repo and vault children
+children = [
+  MyHost.Repo,
+  {Defdo.Vault.Runtime, Defdo.AuthClient.Site.vault_set("my_host", env)},
+  Defdo.DevIdp,
+  MyHostWeb.Endpoint
+]
+```
+
+The values under `client:` and `internal_api_token:` are dev literals. They are worthless
+outside the dev IdP.
+
+### Why the order matters
+
+The package has no application callback module. A dependency's application starts before
+the host's Repo and vault, so it could not read the site records. The host supervises
+`Defdo.DevIdp` and places it after both. A host that places it earlier gets a
+`Defdo.DevIdp.BootError` saying exactly that.
+
+`Defdo.DevIdp` is a bare module in the children list, so a production compile emits no
+warning. The module is absent in production: a host that forgot to remove the line fails
+at boot with `UndefinedFunctionError Defdo.DevIdp.child_spec/1`.
+
+## Boot states
+
+| State | When | What you see |
+|---|---|---|
+| `ready` | every configured site points at this dev IdP | the server answers normally |
+| `unseeded` | no site record exists yet (a fresh database) | the index works; every other page is 503 "run `mix defdo_dev_idp.seed`" |
+| refused | the host environment is not `:dev`/`:test` (or is undeclared), a site points at another IdP, the config block is incomplete, or the records cannot be read | `Defdo.DevIdp.BootError`; the host does not boot |
+
+Without `enabled: true` the child returns `:ignore`.
+
+An unseeded server re-checks on each request and through `Defdo.DevIdp.recheck/0`, so it
+becomes `ready` as soon as the records exist.
+
+## Safety rules
+
+- The listener binds `127.0.0.1`, and every request from a non-loopback peer gets 404.
+- The server never starts outside `:dev` and `:test`. It reads the host environment the way
+  defdo_auth_client does (`config :defdo_auth_client, :env`, default `:prod`; never
+  `Mix.env/0`), so a host that does not declare `config :defdo_auth_client, :env,
+  config_env()` is refused with `{:env_not_allowed, :prod}` before any site record is read.
+  The host's `only: [:dev, :test]` is the first line; this guard is the second.
+- The server never starts while a site record points at a real IdP.
+- It declares itself with the mark `defdo-dev-idp` (field `defdo_idp_mark`).
+  defdo_auth_client refuses a marked identity provider outside `:dev` and `:test`.
+  The mark is self-declared: it catches a mistake, it does not stop an attacker.
+
+## Development
+
+```sh
+mix deps.get
+mix compile --warnings-as-errors
+mix format --check-formatted
+mix credo --strict
+mix test
+```
+
+Private dependencies resolve with the organization read token.
