@@ -1,20 +1,41 @@
 defmodule Defdo.DevIdp.Web.ClientAuth do
   @moduledoc """
-  Authenticates the dev client on the token and introspection endpoints:
+  Authenticates a dev client on the token and introspection endpoints:
   `client_id` + `client_secret` in the body, or HTTP Basic.
+
+  There are two clients: the login client from the config, and the dev service
+  client derived from it (`<id>-svc` / `<secret>-svc`).
   """
 
   import Plug.Conn
 
   alias Defdo.DevIdp.Config
+  alias Defdo.DevIdp.SeedRunner
 
-  @spec check(Plug.Conn.t(), Config.t()) :: :ok | :error
-  def check(conn, %Config{client: client}) do
+  @doc "Which client the request authenticates as."
+  @spec identify(Plug.Conn.t(), Config.t()) :: {:ok, :login | :service} | :error
+  def identify(conn, %Config{client: login} = config) do
     {id, secret} = credentials(conn)
+    service = SeedRunner.service_client(config)
 
-    if secure_equal?(id, client.id) and secure_equal?(secret, client.secret),
-      do: :ok,
-      else: :error
+    cond do
+      matches?(id, secret, login) -> {:ok, :login}
+      matches?(id, secret, service) -> {:ok, :service}
+      true -> :error
+    end
+  end
+
+  @doc "True for either dev client."
+  @spec check(Plug.Conn.t(), Config.t()) :: :ok | :error
+  def check(conn, %Config{} = config) do
+    case identify(conn, config) do
+      {:ok, _client} -> :ok
+      :error -> :error
+    end
+  end
+
+  defp matches?(id, secret, client) do
+    secure_equal?(id, client.id) and secure_equal?(secret, client.secret)
   end
 
   defp credentials(conn) do

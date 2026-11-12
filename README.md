@@ -4,10 +4,8 @@ A dev-only mock IdP. It speaks the subset of the `defdo_auth` OAuth2/OIDC flow t
 `defdo_auth_client` uses, against the `Defdo.AuthClient.Site` contract, so a defdo app
 signs in locally through its unchanged plugs. A production build carries none of it.
 
-Status: slices 04–06 of the dev-login set (`guides/slices/dev-idp/`). The server boots,
-enforces its two safety rules, and serves the index, discovery, the authorize picker, the
-token endpoint, JWKS, both introspection endpoints, userinfo and sign-out. The seed task
-arrives in slice 07, the release gate in 08.
+Status: slices 04–07 of the dev-login set (`guides/slices/dev-idp/`). The server, every
+endpoint and the seed task are in place. The release gate arrives in slice 08.
 
 ## Install in a host
 
@@ -95,3 +93,55 @@ mix test
 ```
 
 Private dependencies resolve with the organization read token.
+
+## Seeding
+
+```sh
+mix defdo_dev_idp.seed
+```
+
+Add it to the host's setup alias, after the database exists:
+
+```elixir
+setup: ["deps.get", "ecto.setup", "defdo_dev_idp.seed", "assets.setup", "assets.build"]
+```
+
+The task needs the host's Repo for tenant provisioning:
+
+```elixir
+config :defdo_dev_idp, provision: [repo: MyHost.Repo]
+```
+
+On a fresh database the dev IdP starts `unseeded`. The task then:
+
+1. provisions one tenant per distinct profile tenant through `Defdo.Tenant.Provision.run/2`;
+2. writes the app `Site` record under the dev vault tenant (`config :defdo_vault, :credentials`);
+3. writes one customer `Site` record per other profile tenant;
+4. re-checks the dev IdP, which becomes `ready`.
+
+It prints one line per step. A second run prints `unchanged` on every line and writes
+nothing.
+
+Rules:
+
+- Records are written only through `Defdo.AuthClient.Site.put/2`, the same writer hosts
+  use for their own records. There is no second record shape.
+- A record that points at another site is never overwritten; the task stops with an error.
+- Every record carries `idp_mark: "defdo-dev-idp"` (vault code `auth.idp_mark`). A record
+  of this dev IdP written before the mark existed is rewritten with it; `app_record_extra`
+  cannot remove it. A host vault that declares `auth.idp_mark` gets it from this task.
+- The task refuses to run unless `config :defdo_auth_client, :env` is `:dev` or `:test`.
+- Sample data is invented (`Defdo Red (sample)`, `Acme (sample)`). Never seed a real
+  customer, email or phone.
+
+### Deterministic tenant ids (open gap)
+
+The task passes each profile's `tenant_id` to `Provision.run/2` as the `"tenant_id"`
+param. Whether the tenant is created with that id depends on the host's provisioning
+adapters. This is checked per host when the host adopts the dev IdP.
+
+### The dev service client
+
+The seed also records a service client, `<client id>-svc` with secret
+`<client secret>-svc`. It mints machine tokens with `grant_type=client_credentials`
+and the app record's service scopes (`api:admin` by default).
