@@ -15,6 +15,7 @@ defmodule Defdo.DevIdp.Web.Token do
   alias Defdo.DevIdp.Mark
   alias Defdo.DevIdp.PKCE
   alias Defdo.DevIdp.Store
+  alias Defdo.DevIdp.Web.ClientAuth
 
   @spec post(Plug.Conn.t()) :: Plug.Conn.t()
   def post(conn) do
@@ -34,34 +35,11 @@ defmodule Defdo.DevIdp.Web.Token do
   end
 
   defp authenticate(conn, config) do
-    {id, secret} = credentials(conn)
-
-    if secure_equal?(id, config.client.id) and secure_equal?(secret, config.client.secret),
-      do: :ok,
-      else: {:error, 401, "invalid_client"}
-  end
-
-  defp credentials(conn) do
-    case get_req_header(conn, "authorization") do
-      ["Basic " <> encoded | _rest] -> basic(encoded)
-      _none -> {conn.params["client_id"], conn.params["client_secret"]}
+    case ClientAuth.check(conn, config) do
+      :ok -> :ok
+      :error -> {:error, 401, "invalid_client"}
     end
   end
-
-  defp basic(encoded) do
-    with {:ok, decoded} <- Base.decode64(encoded),
-         [id, secret] <- String.split(decoded, ":", parts: 2) do
-      {URI.decode_www_form(id), URI.decode_www_form(secret)}
-    else
-      _malformed -> {nil, nil}
-    end
-  end
-
-  defp secure_equal?(left, right) when is_binary(left) and is_binary(right) do
-    Plug.Crypto.secure_compare(left, right)
-  end
-
-  defp secure_equal?(_left, _right), do: false
 
   defp check_grant_type(params) do
     if params["grant_type"] == "authorization_code",
@@ -100,7 +78,8 @@ defmodule Defdo.DevIdp.Web.Token do
     Store.put_token(token, %{
       profile_key: profile.key,
       client_id: stored.client_id,
-      scope: stored.scope,
+      scope: String.split(stored.scope, " ", trim: true),
+      issued_at: now,
       expires_at: now + Store.token_ttl()
     })
 
