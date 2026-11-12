@@ -81,6 +81,30 @@ steps:
   #  RELEASE — tag events
   # ═══════════════════════════════════════════════════════════════════════
 
+  # The gate must be RED on this package's own release, RED on a missing
+  # directory, and RED when mix is absent. A gate that cannot fail is not a gate.
+  - name: gate-script-self-check
+    image: elixir:1.20.4
+    when:
+      event: [push, pull_request, cron, manual]
+    environment:
+      HEX_HTTP_TIMEOUT: "120"
+      HEX_ORG_NAME:
+        from_secret: hex_org_name
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+    commands:
+      - mix do local.hex --force + local.rebar --force
+      - |
+        if [ -n "$$HEX_ORG_NAME" ] && [ -n "$$HEX_ORG_TOKEN" ]; then
+          mix hex.organization auth "$$HEX_ORG_NAME" --key "$$HEX_ORG_TOKEN"
+        fi
+      - MIX_ENV=prod mix deps.get
+      - MIX_ENV=prod mix release --overwrite
+      - sh scripts/ci/assert-no-dev-idp.sh release _build/prod/rel/defdo_dev_idp 2>&1 | grep -q '\[beams\]'
+      - sh scripts/ci/assert-no-dev-idp.sh release /nonexistent 2>&1 | grep -q '\[release-dir\]'
+      - PATH=/usr/bin:/bin sh scripts/ci/assert-no-dev-idp.sh deps 2>&1 | grep -q '\[deps-tree\]: mix deps.tree failed'
+
   - name: release-validate
     image: elixir:1.20.4
     when:
