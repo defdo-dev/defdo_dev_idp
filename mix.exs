@@ -32,9 +32,9 @@ defmodule Defdo.DevIdp.MixProject do
       {:plug, "~> 1.16"},
       {:jason, "~> 1.4"},
       {:jose, "~> 1.11"},
-      {:defdo_auth_client, "~> 0.15.1", organization: :defdo},
+      {:defdo_auth_client, ">= 0.15.1 and < 0.19.0", organization: :defdo},
       # Defdo.AuthClient.Site is only compiled when these two are present.
-      {:defdo_vault, "~> 0.21", organization: :defdo},
+      {:defdo_vault, "~> 0.22", organization: :defdo},
       {:defdo_tenant, "~> 0.24", organization: :defdo},
       {:defdo_tenant_provision, "~> 0.3", organization: :defdo},
       {:stream_data, "~> 1.1", only: :test},
