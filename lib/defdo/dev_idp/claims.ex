@@ -23,17 +23,44 @@ defmodule Defdo.DevIdp.Claims do
   @doc "The introspection payload for a token string: active claims, or the inactive answer."
   @spec introspect(Config.t(), term()) :: map()
   def introspect(%Config{} = config, token) do
-    case lookup(config, token) do
-      {:ok, record, profile} -> for_token(record, profile)
+    case Store.get_token(token) do
+      {:ok, %{service: true} = record} -> for_service(record, config)
+      {:ok, record} -> for_record(record, config)
       :error -> @inactive
     end
+  end
+
+  defp for_record(record, config) do
+    case Enum.find(config.profiles, &(&1.key == record.profile_key)) do
+      %Profile{} = profile -> for_token(record, profile)
+      nil -> @inactive
+    end
+  end
+
+  # A machine token of the dev service client: no user, the pinned tenant.
+  defp for_service(record, config) do
+    tenant_id = hd(config.profiles).tenant_id
+
+    %{
+      "active" => true,
+      "sub" => record.client_id,
+      "client_id" => record.client_id,
+      "token_type" => "Bearer",
+      "exp" => record.expires_at,
+      "iat" => record.issued_at,
+      "scope" => Enum.join(record.scope, " "),
+      "scopes" => record.scope,
+      "tenant" => %{"id" => tenant_id},
+      "tenant_id" => tenant_id,
+      "roles" => []
+    }
   end
 
   @doc "The token's record and profile, when the token is live."
   @spec lookup(Config.t(), term()) :: {:ok, map(), Profile.t()} | :error
   def lookup(%Config{} = config, token) do
-    with {:ok, record} <- Store.get_token(token),
-         %Profile{} = profile <- Enum.find(config.profiles, &(&1.key == record.profile_key)) do
+    with {:ok, %{profile_key: key} = record} <- Store.get_token(token),
+         %Profile{} = profile <- Enum.find(config.profiles, &(&1.key == key)) do
       {:ok, record, profile}
     else
       _unknown -> :error

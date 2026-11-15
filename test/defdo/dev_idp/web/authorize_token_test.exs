@@ -129,7 +129,7 @@ defmodule Defdo.DevIdp.Web.AuthorizeTokenTest do
     end
 
     test "another grant type" do
-      form = Flow.token_form(Flow.code_for("operator"), %{"grant_type" => "client_credentials"})
+      form = Flow.token_form(Flow.code_for("operator"), %{"grant_type" => "password"})
       assert %{status: 400, body: %{"error" => "unsupported_grant_type"}} = Flow.token(form)
     end
   end

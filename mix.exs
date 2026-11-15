@@ -36,6 +36,7 @@ defmodule Defdo.DevIdp.MixProject do
       # Defdo.AuthClient.Site is only compiled when these two are present.
       {:defdo_vault, "~> 0.21", organization: :defdo},
       {:defdo_tenant, "~> 0.24", organization: :defdo},
+      {:defdo_tenant_provision, "~> 0.3", organization: :defdo},
       {:stream_data, "~> 1.1", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]

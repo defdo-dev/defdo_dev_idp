@@ -17,7 +17,7 @@ defmodule Defdo.DevIdp.Config do
   @start_only [:site_reader]
 
   @enforce_keys @required
-  defstruct @required ++ [provision: [], site_record_extra: %{}, site_reader: nil]
+  defstruct @required ++ [provision: [], app_record_extra: %{}, site_reader: nil]
 
   @type site_reader :: ([String.t()] -> [String.t()])
 
@@ -29,7 +29,7 @@ defmodule Defdo.DevIdp.Config do
           redirect_uri: String.t(),
           profiles: [Profile.t()],
           provision: keyword(),
-          site_record_extra: map(),
+          app_record_extra: map(),
           site_reader: site_reader() | nil
         }
 
@@ -78,7 +78,7 @@ defmodule Defdo.DevIdp.Config do
       redirect_uri: Keyword.fetch!(settings, :redirect_uri),
       profiles: settings |> Keyword.fetch!(:profiles) |> Profile.list!(),
       provision: Keyword.get(settings, :provision, []),
-      site_record_extra: Keyword.get(settings, :site_record_extra, %{}),
+      app_record_extra: Keyword.get(settings, :app_record_extra, %{}),
       site_reader: site_reader!(site_reader)
     }
   end
