@@ -1,0 +1,91 @@
+# ─── defdo_dev_idp Woodpecker Release ────────────────────────────────────
+#
+# Tag path only: validate, then publish to the private Hex organization.
+# Split out of ci.yml so it gets its own workspace and a tag never runs the
+# push/pull_request CI steps. Publishing is CI's job; nobody runs
+# `mix hex.publish` by hand.
+#
+# Global secrets (Woodpecker org settings):
+#   hex_api_key   — Hex.pm API write key
+#   hex_org_name  — Hex organization name ("defdo")
+#   hex_org_token — Hex organization read token
+#
+# Defdo release tags are bare (0.1.0, never v0.1.0) and must equal the
+# version in mix.exs.
+
+labels:
+  platform: linux/amd64
+
+when:
+  - event: tag
+  - event: manual
+    evaluate: 'CI_PIPELINE_TRIGGER_MESSAGE == "publish"'
+
+steps:
+  - name: release-validate
+    image: elixir:1.20.4
+    environment:
+      # Registry fetches from the k3s agent time out under load (hex default 15 s).
+      HEX_HTTP_TIMEOUT: "120"
+      MIX_ENV: test
+      HEX_ORG_NAME:
+        from_secret: hex_org_name
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+    commands:
+      - |
+        set -e
+        if [ -n "$$CI_COMMIT_TAG" ]; then
+          case "$$CI_COMMIT_TAG" in
+            v*)
+              echo "ERROR: tag '$$CI_COMMIT_TAG' is v-prefixed. Defdo release tags are bare: $${CI_COMMIT_TAG#v}"
+              exit 1
+              ;;
+          esac
+        fi
+      - mix do local.hex --force + local.rebar --force
+      - |
+        if [ -n "$$HEX_ORG_NAME" ] && [ -n "$$HEX_ORG_TOKEN" ]; then
+          mix hex.organization auth "$$HEX_ORG_NAME" --key "$$HEX_ORG_TOKEN"
+        fi
+      - mix deps.get
+      - |
+        set -e
+        VERSION=$(sed -n 's/^ *version: "\([^"]*\)".*/\1/p' mix.exs | head -n 1)
+        if [ -n "$$CI_COMMIT_TAG" ] && [ "$$CI_COMMIT_TAG" != "$$VERSION" ]; then
+          echo "ERROR: tag '$$CI_COMMIT_TAG' does not match mix.exs version '$$VERSION'"
+          exit 1
+        fi
+      - mix format --check-formatted
+      - mix compile --warnings-as-errors
+      - mix credo --strict
+      - mix test
+      - MIX_ENV=dev mix deps.get
+      - MIX_ENV=dev mix hex.build
+
+  - name: hex-publish
+    image: elixir:1.20.4
+    depends_on: [release-validate]
+    environment:
+      HEX_HTTP_TIMEOUT: "120"
+      MIX_ENV: dev
+      HEX_API_KEY:
+        from_secret: hex_api_key
+      HEX_ORG_NAME:
+        from_secret: hex_org_name
+      HEX_ORG_TOKEN:
+        from_secret: hex_org_token
+    commands:
+      - mix do local.hex --force + local.rebar --force
+      - |
+        if [ -n "$$HEX_ORG_NAME" ] && [ -n "$$HEX_ORG_TOKEN" ]; then
+          mix hex.organization auth "$$HEX_ORG_NAME" --key "$$HEX_ORG_TOKEN"
+        fi
+      - |
+        if [ -z "$$HEX_API_KEY" ]; then
+          echo "ERROR: HEX_API_KEY is required to publish"
+          exit 1
+        fi
+      - mix deps.get
+      # The package has no docs dependency, so publish the package only.
+      - mix hex.publish package --yes

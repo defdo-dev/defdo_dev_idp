@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## Unreleased
+
+## 0.1.0 - 2026-11-14
 
 ### Added
 
@@ -35,3 +37,10 @@
   and `Defdo.DevIdp.Gate.assert_absent!/1`.
 - Integration proof: a fake host signs in through the real PKCE plug, reads the real
   `Identity`, and introspects through the real SDK.
+
+### Changed
+
+- Release pipeline: tags are validated and published to the `defdo` Hex organization by
+  `.woodpecker/release.yml`; the tag must equal the `mix.exs` version. `ci.yml` no longer
+  reacts to tags.
+- Dependency floors are `defdo_auth_client >= 0.15.1 and < 0.19.0` and `defdo_vault ~> 0.22`.
