@@ -113,6 +113,20 @@ defmodule Defdo.DevIdp.FakeConsumer do
   end
 
   @impl true
+  def delete_secret(%{code: "defdo_auth_client"}, _opts) do
+    tenant_id = Context.tenant_id()
+
+    deleted =
+      Agent.get_and_update(__MODULE__, fn state ->
+        {if(Map.has_key?(state, tenant_id), do: 1, else: 0), Map.delete(state, tenant_id)}
+      end)
+
+    {:ok, %{deleted: deleted}}
+  end
+
+  def delete_secret(_attrs, _opts), do: {:ok, %{deleted: 0}}
+
+  @impl true
   def resolve_value(_reference, _opts), do: {:error, :not_found}
 
   @impl true
