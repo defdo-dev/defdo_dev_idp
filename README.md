@@ -4,8 +4,8 @@ A dev-only mock IdP. It speaks the subset of the `defdo_auth` OAuth2/OIDC flow t
 `defdo_auth_client` uses, against the `Defdo.AuthClient.Site` contract, so a defdo app
 signs in locally through its unchanged plugs. A production build carries none of it.
 
-Status: slices 04–07 of the dev-login set (`guides/slices/dev-idp/`). The server, every
-endpoint and the seed task are in place. The release gate arrives in slice 08.
+Status: slices 04–08 of the dev-login set (`guides/slices/dev-idp/`) are implemented.
+Not released: it waits for defdo_auth_client 0.15.0 on Hex.
 
 ## Install in a host
 
@@ -145,3 +145,21 @@ adapters. This is checked per host when the host adopts the dev IdP.
 The seed also records a service client, `<client id>-svc` with secret
 `<client secret>-svc`. It mints machine tokens with `grant_type=client_credentials`
 and the app record's service scopes (`api:admin` by default).
+
+## The release gate
+
+A production build must not contain the dev IdP. The gate fails closed.
+
+```sh
+# on a release tree or inside the runtime image; needs no mix
+sh scripts/ci/assert-no-dev-idp.sh release _build/prod/rel/my_host
+
+# where MIX_ENV=prod deps are fetched; a failed mix command is a failure
+sh scripts/ci/assert-no-dev-idp.sh deps
+```
+
+It has four named checks: `[release-dir]`, `[beams]`, `[app-dir]`, `[deps-tree]`.
+`Defdo.DevIdp.Gate.assert_absent!/1` is the `release` mode from ExUnit.
+
+The script ships in the package (`deps/defdo_dev_idp/scripts/ci/`). Copy it into the host's
+CI, because a production build has no `deps/defdo_dev_idp` to run it from.
