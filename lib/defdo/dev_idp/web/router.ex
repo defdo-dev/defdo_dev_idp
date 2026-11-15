@@ -11,12 +11,15 @@ defmodule Defdo.DevIdp.Web.Router do
 
   alias Defdo.DevIdp.Keys
   alias Defdo.DevIdp.State
+  alias Defdo.DevIdp.Store
   alias Defdo.DevIdp.Web.Authorize
   alias Defdo.DevIdp.Web.Discovery
+  alias Defdo.DevIdp.Web.Introspect
   alias Defdo.DevIdp.Web.LoopbackOnly
   alias Defdo.DevIdp.Web.Pages
   alias Defdo.DevIdp.Web.Token
   alias Defdo.DevIdp.Web.Unseeded
+  alias Defdo.DevIdp.Web.Userinfo
 
   plug(LoopbackOnly)
   plug(Unseeded)
@@ -25,9 +28,12 @@ defmodule Defdo.DevIdp.Web.Router do
   plug(:dispatch)
 
   get "/" do
+    config = conn.assigns.config
+    signed_in = Authorize.session_profile(conn, config)
+
     conn
     |> put_resp_content_type("text/html")
-    |> send_resp(200, Pages.index(conn.assigns.config, State.get()))
+    |> send_resp(200, Pages.index(config, State.get(), signed_in))
   end
 
   get "/.well-known/openid-configuration" do
@@ -47,6 +53,18 @@ defmodule Defdo.DevIdp.Web.Router do
   get("/openid/authorize", do: Authorize.get(conn))
   post("/oauth/authorize", do: Authorize.post(conn))
   post("/oauth/token", do: Token.post(conn))
+  post("/oauth/introspect", do: Introspect.oauth(conn))
+  post("/api/v1/introspect", do: Introspect.internal(conn))
+  get("/openid/userinfo", do: Userinfo.get(conn))
+
+  post "/session/clear" do
+    Store.clear_all_sessions()
+
+    conn
+    |> delete_resp_cookie(Authorize.cookie(), path: "/")
+    |> put_resp_header("location", "/")
+    |> send_resp(303, "")
+  end
 
   match _ do
     send_resp(conn, 404, "Not found")
