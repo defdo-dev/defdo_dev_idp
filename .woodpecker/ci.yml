@@ -101,9 +101,12 @@ steps:
         fi
       - MIX_ENV=prod mix deps.get
       - MIX_ENV=prod mix release --overwrite
-      - sh scripts/ci/assert-no-dev-idp.sh release _build/prod/rel/defdo_dev_idp 2>&1 | grep -q '\[beams\]'
-      - sh scripts/ci/assert-no-dev-idp.sh release /nonexistent 2>&1 | grep -q '\[release-dir\]'
-      - PATH=/usr/bin:/bin sh scripts/ci/assert-no-dev-idp.sh deps 2>&1 | grep -q '\[deps-tree\]: mix deps.tree failed'
+      - |
+        sh scripts/ci/assert-no-dev-idp.sh release _build/prod/rel/defdo_dev_idp 2>&1 | grep -q '\[beams\]'
+      - |
+        sh scripts/ci/assert-no-dev-idp.sh release /nonexistent 2>&1 | grep -q '\[release-dir\]'
+      - |
+        PATH=/usr/bin:/bin sh scripts/ci/assert-no-dev-idp.sh deps 2>&1 | grep -q '\[deps-tree\]: mix deps.tree failed'
 
   - name: release-validate
     image: elixir:1.20.4
