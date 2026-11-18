@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.1 - 2026-11-17
+
 ### Changed
 
 - defdo_auth_client requirement widened to `>= 0.15.1 and < 0.20.0` (was `< 0.19.0`). 0.19.x adds `:success_redirect` and turns a non-JSON or raising callback into a failed login; nothing this package uses changed. The full suite, credo and the release-gate self-check pass on defdo_auth_client 0.19.1 and defdo_vault 0.22.3. A host on 0.19.x (defdo_my_mvno, slice 10a) could not resolve 0.1.0 at all.
