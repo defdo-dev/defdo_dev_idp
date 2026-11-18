@@ -4,7 +4,7 @@ defmodule Defdo.DevIdp.MixProject do
   def project do
     [
       app: :defdo_dev_idp,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.20",
       # The package's own test/support. This is the only Mix.env() allowed, and only here.
       elixirc_paths: elixirc_paths(Mix.env()),
