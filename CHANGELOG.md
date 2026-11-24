@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Security
+
+- db_connection 2.10.2 -> 2.10.3 (EEF-CVE-2026-133555).
+- flop 0.29.1 -> 0.29.2 (EEF-CVE-2026-130411).
+- ash CVE-2026-124283: not a dependency of this package; no change.
+
+### Changed
+
+- Lock moved to latest: defdo_auth_client 0.20.0, defdo_vault 0.25.0, defdo_tenant 0.26.0, defdo_tenant_provision 0.3.1, defdo_migrator 0.6.0, bandit 1.15.0, plug 1.20.4, postgrex 0.23.0, finch 0.25.0, idna 8.0.0.
+- defdo_auth_client requirement widened to `>= 0.15.1 and < 0.21.0`. 0.20.0 breaks only `Defdo.AuthPlug.init/1` (requires `:expected_tenant`), which this package does not use.
+
 ## 0.1.1 - 2026-11-17
 
 ### Changed
